@@ -17,7 +17,7 @@ contract WakandaToken is ERC20, Ownable {
 
     mapping (address => bool) public isRegistered;
 
-    function register(address _to) external {
+    function register(address _to) external onlyOwner {
         uint _amount = 1 * 10 **18; // 1 ether
         isRegistered[_to] = true;
         _mint(_to, _amount);
