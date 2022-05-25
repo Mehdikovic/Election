@@ -91,7 +91,7 @@ contract Election is Ownable {
     Candidate[] public sortedCandidates;
     mapping(uint256 => Candidate) public id2candidates;
     
-    mapping(address => mapping(uint256 => bool)) public userCastedVote; // user's address => candidate's id => true/false
+    mapping(address => mapping(uint256 => bool)) public userCastedVote; // voter's address => candidate's id => true/false
     mapping(uint256 => address[]) internal candidate2Voters;
     mapping(address => uint256[]) internal voter2Candidates;
 
