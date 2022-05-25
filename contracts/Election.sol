@@ -12,6 +12,7 @@ pragma solidity ^0.8.4;
 import "hardhat/console.sol";
 
 struct Candidate {
+    uint256 index;
     uint256 id;
     string name;
     string cult;
@@ -23,7 +24,7 @@ uint256 constant MAX_UINT = type(uint256).max;
 
 library Sort {
 
-    function quickSort(Candidate[] storage data) internal {
+    function quickSort(Candidate[] storage data, mapping(uint256 => Candidate) storage id2Candidate) internal {
         uint256 n = data.length;
         Candidate[] memory arr = new Candidate[](n);
         uint256 i;
@@ -77,6 +78,9 @@ library Sort {
         }
 
         for(i = 0; i < n; i++) {
+            if (id2Candidate[arr[i].id].index != i) {
+                id2Candidate[arr[i].id].index = i;
+            }
             data[i] = arr[i];
         }
     }
@@ -87,7 +91,7 @@ library Sort {
 contract Election {
     using Sort for Candidate[];
 
-    mapping(uint256 => Candidate) public id2candidates;
+    mapping(uint256 => Candidate) public id2candidate;
     mapping(address => mapping(uint256 => bool)) public userCastedVote; // user's address => candidate's id => true/false
     mapping(uint256 => address[]) internal candidate2Voters;
     mapping(address => uint256[]) internal voter2Candidates;
@@ -104,8 +108,8 @@ contract Election {
         require(_age > 18, "invalid age"); // TODO add a valid age limit
         
         uint256 id = sortedCandidates.length + 1; // we don't have a candidate with 0 id, you can change it if you like
-        Candidate memory newCandidate = Candidate(id, _name, _cult, _age, 0);
-        id2candidates[id] = newCandidate;
+        Candidate memory newCandidate = Candidate(id - 1, id, _name, _cult, _age, 0);
+        id2candidate[id] = newCandidate;
         sortedCandidates.push(newCandidate);
 
         emit CandidateAdded(id);
@@ -123,13 +127,8 @@ contract Election {
 
         // I think we should send one token here
 
-        id2candidates[_id].votes++;
-        for (uint256 i = 0; i < len; i++) {
-            if (sortedCandidates[i].id == _id) {
-                sortedCandidates[i].votes++;
-                break;
-            }
-        }
+        id2candidate[_id].votes++;
+        sortedCandidates[id2candidate[_id].index].votes++;
 
         uint256 beforeSortIndex = MAX_UINT;
 
@@ -140,7 +139,7 @@ contract Election {
             }
         }
 
-        sortedCandidates.quickSort();
+        sortedCandidates.quickSort(id2candidate);
 
         uint256 afterSortIndex = MAX_UINT;
 
@@ -171,7 +170,7 @@ contract Election {
             }
         }
 
-        emit VoteCasted(msg.sender, _id, id2candidates[_id].votes);
+        emit VoteCasted(msg.sender, _id, id2candidate[_id].votes);
     }
 
     /* VIEW */

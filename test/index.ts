@@ -74,12 +74,12 @@ describe("Election", function () {
 
     expect(await election.userCastedVote(voter1Addr, candidateId)).to.be.eq(false)
 
-    expect((await election.id2candidates(candidateId)).votes).to.be.eq(0)
+    expect((await election.id2candidate(candidateId)).votes).to.be.eq(0)
 
     await (await election.connect(voter1).castVote(candidateId)).wait()
 
     expect((await election.getSortedCandidates())[0].votes).to.be.eq(1)
-    expect((await election.id2candidates(candidateId)).votes).to.be.eq(1)
+    expect((await election.id2candidate(candidateId)).votes).to.be.eq(1)
     expect(await election.userCastedVote(voter1Addr, candidateId)).to.be.eq(true)
     expect((await election.getVotersOfCandidate(candidateId))[0]).to.be.eq(voter1Addr)
     expect((await election.getCandidatesOfVoter(voter1Addr))[0]).to.be.eq(candidateId)
@@ -91,13 +91,13 @@ describe("Election", function () {
     expect(await election.userCastedVote(voter1Addr, candidateId)).to.be.eq(false)
     expect(await election.userCastedVote(voter2Addr, candidateId)).to.be.eq(false)
 
-    expect((await election.id2candidates(candidateId)).votes).to.be.eq(0)
+    expect((await election.id2candidate(candidateId)).votes).to.be.eq(0)
 
     await (await election.connect(voter1).castVote(candidateId)).wait()
     await (await election.connect(voter2).castVote(candidateId)).wait()
 
     expect((await election.getSortedCandidates())[0].votes).to.be.eq(2)
-    expect((await election.id2candidates(candidateId)).votes).to.be.eq(2)
+    expect((await election.id2candidate(candidateId)).votes).to.be.eq(2)
     expect(await election.userCastedVote(voter1Addr, candidateId)).to.be.eq(true)
     expect(await election.userCastedVote(voter2Addr, candidateId)).to.be.eq(true)
     expect((await election.getVotersOfCandidate(candidateId))[0]).to.be.eq(voter1Addr)
@@ -122,7 +122,7 @@ describe("Election", function () {
     rec = await (await election.connect(voter2).castVote(candidateId)).wait()
     rec = await (await election.connect(voter3).castVote(candidateId)).wait()
     
-    expect((await election.id2candidates(candidateId)).votes).to.be.eq(3)
+    expect((await election.id2candidate(candidateId)).votes).to.be.eq(3)
     expect((await election.getSortedCandidates())[0].votes).to.be.eq(3)
     expect((await election.getVotersOfCandidate(candidateId))[0]).to.be.eq(voter1Addr)
     expect((await election.getVotersOfCandidate(candidateId))[1]).to.be.eq(voter2Addr)
