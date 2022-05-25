@@ -11,7 +11,10 @@ pragma solidity ^0.8.4;
 
 import "hardhat/console.sol";
 
+//import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+
+import {WakandaToken} from "./WakandaToken.sol";
 
 struct Candidate {
     uint256 id;
@@ -22,14 +25,13 @@ struct Candidate {
 }
 
 library Sort {
-
     function quickSort(Candidate[] storage data) internal {
         uint256 n = data.length;
         Candidate[] memory arr = new Candidate[](n);
         uint256 i;
 
         for(i = 0; i < n; i++) {
-            arr[i] = data[i];
+            arr[i] = data[i]; // cloning
         }
 
         uint256[] memory stack = new uint256[](n + 2);
@@ -61,23 +63,23 @@ library Sort {
 
             //Push left side to stack
             if (p > low + 1) {
-            top = top + 1;
-            stack[top] = low;
-            top = top + 1;
-            stack[top] = p - 1;
+                top = top + 1;
+                stack[top] = low;
+                top = top + 1;
+                stack[top] = p - 1;
             }
 
             //Push right side to stack
             if (p + 1 < high) {
-            top = top + 1;
-            stack[top] = p + 1;
-            top = top + 1;
-            stack[top] = high;
+                top = top + 1;
+                stack[top] = p + 1;
+                top = top + 1;
+                stack[top] = high;
             }
         }
 
         for(i = 0; i < n; i++) {
-            data[i] = arr[i];
+            data[i] = arr[i]; // filling our data storage with the sorted array
         }
     }
 }
@@ -88,21 +90,28 @@ contract Election is Ownable {
     
     uint256 public topCandidatesCount = 3;
 
+    WakandaToken public wakanda;
+
     Candidate[] public sortedCandidates;
-    mapping(uint256 => Candidate) public id2candidates;
+    mapping(uint256 => Candidate) public id2candidates; // candidate's id => Candidate; O(1)
     
-    mapping(address => mapping(uint256 => bool)) public userCastedVote; // voter's address => candidate's id => true/false
-    mapping(uint256 => address[]) internal candidate2Voters;
-    mapping(address => uint256[]) internal voter2Candidates;
+    mapping(address => mapping(uint256 => bool)) public userCastedVote; // voter's address => candidate's id => is she/he voted or not?
+    mapping(uint256 => address[]) internal candidate2Voters; // returns the list of addresses who have voted to this particular candidate
+    mapping(address => uint256[]) internal voter2Candidates; // returns the list of candidates who user has voted to
 
     event CandidateAdded(uint256 indexed id);
     event NewChallenger(uint256 indexed candidateId, uint256 slot);
     event VoteCasted(address indexed voter, uint256 indexed candidateId, uint256 newVotedCount);
 
+    constructor(address _wakandaToken) {
+        require(_wakandaToken != address(0), "address is Zero");
+        wakanda = WakandaToken(_wakandaToken);
+    }
+
     function registerCandidate(string memory _name, string memory _cult, uint8 _age) external onlyOwner {
         require(bytes(_name).length > 0, "invalid name");
         require(bytes(_cult).length > 0, "invalid culture");
-        require(_age > 18, "invalid age"); // TODO add a valid age limit
+        require(_age > 18, "invalid age");
         
         // we don't have a candidate with 0 id, you can change it if you like
         uint256 id = sortedCandidates.length + 1;
@@ -115,15 +124,20 @@ contract Election is Ownable {
     }
 
     function castVote(uint256 _id) external onlyValidCandidate(_id) {
-        // TODO check for the token requirements
+        require(wakanda.isRegistered(msg.sender) == true, "has not been registered yet");
         require(userCastedVote[msg.sender][_id] == false, "voted before");
         
+        userCastedVote[msg.sender][_id] = true; // acts exactly as a reentrancy guard
         uint256 len = sortedCandidates.length;
-        userCastedVote[msg.sender][_id] = true;
         candidate2Voters[_id].push(msg.sender);
         voter2Candidates[msg.sender].push(_id);
 
         // I think we should send one token here
+        uint256 amount = 1 ether;
+        require(wakanda.balanceOf(_msgSender()) >= amount, "not enough balance");
+        require(wakanda.approve(address(this), amount), "not enough balance");
+
+        wakanda.transferFrom(_msgSender(), address(this), amount);
 
         id2candidates[_id].votes++;
         for (uint256 i = 0; i < len; i++) {
@@ -134,7 +148,7 @@ contract Election is Ownable {
         }
 
         uint256 beforeSortIndex = MAX_UINT;
-
+        
         for (uint256 i = 0; i < topCandidatesCount; i++) {
             if (i < len && sortedCandidates[i].id == _id) {
                 beforeSortIndex = i;
@@ -143,6 +157,7 @@ contract Election is Ownable {
         }
 
         sortedCandidates.quickSort();
+        //Sort.quickSort(sortedCandidates);
 
         uint256 afterSortIndex = MAX_UINT;
 
@@ -153,7 +168,7 @@ contract Election is Ownable {
             }
         }
 
-        if (afterSortIndex != MAX_UINT) { // new candidate is part of top candidates
+        if (afterSortIndex != MAX_UINT) { // new candidate is part of top 3 candidates
             /*
             // item was part of top candidates before sort, and is part of top again
             if (beforeSortIndex != MAX_UINT && afterSortIndex < beforeSortIndex) {
@@ -168,6 +183,10 @@ contract Election is Ownable {
             }
 
             // candidate has moved up to top three
+            //if (beforeSortIndex == MAX_UINT && afterSortIndex < beforeSortIndex) {
+            //    emit NewChallenger(_id, afterSortIndex);
+            //}
+
             if (afterSortIndex < beforeSortIndex) {
                 emit NewChallenger(_id, afterSortIndex);
             }

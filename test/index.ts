@@ -1,10 +1,13 @@
 import { expect } from "chai";
-import { Signer } from "ethers";
+import { BigNumberish, Signer } from "ethers";
 import { ethers } from "hardhat";
-import { Election } from "../typechain";
+import { Election, WakandaToken } from "../typechain";
 
 let ElectionFactory
 let election: Election
+
+let WakandaFactory
+let wakanda: WakandaToken
 
 let voter1: Signer
 let voter1Addr: string
@@ -17,8 +20,13 @@ let voter3Addr: string
 
 describe("Election", function () {
   it("should deploy and add one candidate", async function () {
+
+    WakandaFactory = await ethers.getContractFactory("WakandaToken")
+    wakanda = await WakandaFactory.deploy()
+    await wakanda.deployed()
+
     ElectionFactory = await ethers.getContractFactory("Election")
-    election = await ElectionFactory.deploy()
+    election = await ElectionFactory.deploy(wakanda.address)
     await election.deployed()
 
     let tx = await election.registerCandidate("Name1", "Cult1", 20)
@@ -72,6 +80,9 @@ describe("Election", function () {
   it("should fire an event for the first candidate", async () => {
     let candidateId = 1
 
+    await wakanda.register(voter1Addr)
+    await wakanda.connect(voter1).approve(election.address, toEth(1))
+
     expect(await election.userCastedVote(voter1Addr, candidateId)).to.be.eq(false)
 
     expect((await election.id2candidates(candidateId)).votes).to.be.eq(0)
@@ -88,6 +99,12 @@ describe("Election", function () {
   it("should fire an event for the first candidate", async () => {
     let candidateId = 2
 
+    await wakanda.register(voter1Addr)
+    await wakanda.connect(voter1).approve(election.address, toEth(1))
+
+    await wakanda.register(voter2Addr)
+    await wakanda.connect(voter2).approve(election.address, toEth(1))
+    
     expect(await election.userCastedVote(voter1Addr, candidateId)).to.be.eq(false)
     expect(await election.userCastedVote(voter2Addr, candidateId)).to.be.eq(false)
 
@@ -118,6 +135,15 @@ describe("Election", function () {
     expect(candidate.age).to.be.eq(43)
     expect(candidate.votes).to.be.eq(0)
 
+    await wakanda.register(voter1Addr)
+    await wakanda.connect(voter1).approve(election.address, toEth(1))
+
+    await wakanda.register(voter2Addr)
+    await wakanda.connect(voter2).approve(election.address, toEth(1))
+
+    await wakanda.register(voter3Addr)
+    await wakanda.connect(voter3).approve(election.address, toEth(1))
+
     rec = await (await election.connect(voter1).castVote(candidateId)).wait()
     rec = await (await election.connect(voter2).castVote(candidateId)).wait()
     rec = await (await election.connect(voter3).castVote(candidateId)).wait()
@@ -134,3 +160,8 @@ describe("Election", function () {
     expect(await election.owner()).to.be.eq(depoyer)
   })
 });
+
+
+export function toEth(value: BigNumberish) {
+  return ethers.utils.parseEther(value.toString());
+}
