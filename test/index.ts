@@ -34,13 +34,13 @@ describe("Election", function () {
     expect(candidate.votes).to.be.eq(0)
 
     let accounts = await ethers.getSigners()
-    
+
     voter1 = accounts[1]
     voter1Addr = await voter1.getAddress()
-    
+
     voter2 = accounts[2]
     voter2Addr = await voter2.getAddress()
-    
+
     voter3 = accounts[3]
     voter3Addr = await voter3.getAddress()
   });
@@ -121,11 +121,16 @@ describe("Election", function () {
     rec = await (await election.connect(voter1).castVote(candidateId)).wait()
     rec = await (await election.connect(voter2).castVote(candidateId)).wait()
     rec = await (await election.connect(voter3).castVote(candidateId)).wait()
-    
+
     expect((await election.id2candidates(candidateId)).votes).to.be.eq(3)
     expect((await election.getSortedCandidates())[0].votes).to.be.eq(3)
     expect((await election.getVotersOfCandidate(candidateId))[0]).to.be.eq(voter1Addr)
     expect((await election.getVotersOfCandidate(candidateId))[1]).to.be.eq(voter2Addr)
     expect((await election.getVotersOfCandidate(candidateId))[2]).to.be.eq(voter3Addr)
+  })
+
+  it("should check for the owner", async () => {
+    let depoyer = await (await ethers.getSigners())[0].getAddress()
+    expect(await election.owner()).to.be.eq(depoyer)
   })
 });

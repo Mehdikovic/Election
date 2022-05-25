@@ -11,6 +11,8 @@ pragma solidity ^0.8.4;
 
 import "hardhat/console.sol";
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+
 struct Candidate {
     uint256 id;
     string name;
@@ -18,8 +20,6 @@ struct Candidate {
     uint8 age;
     uint64 votes; // TODO may need smaller size
 }
-
-uint256 constant MAX_UINT = type(uint256).max;
 
 library Sort {
 
@@ -82,34 +82,36 @@ library Sort {
     }
 }
 
-// TODO add onlyMember modifier to protect smart contract
-
-contract Election {
+contract Election is Ownable {
     using Sort for Candidate[];
+    uint256 constant public MAX_UINT = type(uint256).max;
+    
+    uint256 public topCandidatesCount = 3;
 
+    Candidate[] public sortedCandidates;
     mapping(uint256 => Candidate) public id2candidates;
+    
     mapping(address => mapping(uint256 => bool)) public userCastedVote; // user's address => candidate's id => true/false
     mapping(uint256 => address[]) internal candidate2Voters;
     mapping(address => uint256[]) internal voter2Candidates;
-    Candidate[] public sortedCandidates;
-    uint256 public topCandidatesCount = 3;
 
     event CandidateAdded(uint256 indexed id);
     event NewChallenger(uint256 indexed candidateId, uint256 slot);
     event VoteCasted(address indexed voter, uint256 indexed candidateId, uint256 newVotedCount);
 
-    function registerCandidate(string memory _name, string memory _cult, uint8 _age) external {
+    function registerCandidate(string memory _name, string memory _cult, uint8 _age) external onlyOwner {
         require(bytes(_name).length > 0, "invalid name");
         require(bytes(_cult).length > 0, "invalid culture");
         require(_age > 18, "invalid age"); // TODO add a valid age limit
         
-        uint256 id = sortedCandidates.length + 1; // we don't have a candidate with 0 id, you can change it if you like
+        // we don't have a candidate with 0 id, you can change it if you like
+        uint256 id = sortedCandidates.length + 1;
         Candidate memory newCandidate = Candidate(id, _name, _cult, _age, 0);
         id2candidates[id] = newCandidate;
         sortedCandidates.push(newCandidate);
 
         emit CandidateAdded(id);
-        // no need to sort them, because they have been added with zero votes
+        // no need to sort them, because they have been added with zero votes to the end of the list
     }
 
     function castVote(uint256 _id) external onlyValidCandidate(_id) {
